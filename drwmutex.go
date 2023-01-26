@@ -42,6 +42,25 @@ func (mx DRWMutex) Lock() {
 	}
 }
 
+func (mx DRWMutex) TryLock() (ok bool) {
+	var core int
+	defer func() {
+		if ok {
+			return
+		}
+		core--
+		for ; core >= 0; core-- {
+			mx[core].mu.Unlock()
+		}
+	}()
+	for ; core < len(mx); core++ {
+		if !mx[core].mu.TryLock() {
+			return false
+		}
+	}
+	return true
+}
+
 // Unlock releases an exclusive writer lock similar to sync.Mutex.Unlock.
 func (mx DRWMutex) Unlock() {
 	for core := range mx {
